@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ToDo List</title>
+
+  <script src="js/jquery-1.11.3.js"></script>
+  <script src="js/jsrender.js"></script>
+
+  <script type="text/template" data-name="welcome">
+    <h1>Welcome!</h1>
+    <p>Currently holding {{: items.length }} items</p>
+  </script>
+
+  <script type="text/template" data-name="add">
+    <h1>Add Item</h1>
+    <input type="text" class="item-value">
+    <button class="item-add">Add Item</button>
+  </script>
+
+  <script type="text/template" data-name="list">
+    <h1>Item List</h1>
+    <ul>
+      {{for items}}
+        <li class="item" data-position="{{:#index}}" data-id="{{:_id}}" data-completed= "{{:completed}}">
+          <input type="checkbox" name="completed-flag"  value="{{:completed}}" {{if completed }}  checked {{/if}}>
+            {{:text}}
+          <img src="images/delete.png" id="del-item">
+        </li>
+      {{/for}}
+      <a href="#listAll" id="all">all</a>
+      <a href="#listActive" id="active">active</a>
+      <a href="#listComleted" id="completed">completed</a>
+    </ul>
+  </script>
+
+  <script type="text/javascript">
+    var BASE_URL = 'todos/'
+
+    $(function() {
+        // Compile all templates to functions, see jsrender docs
+        $('script[type="text/template"]').each(function() {
+          var $elem = $(this);
+          $.templates($elem.attr('data-name'), $elem.text());
+        });
+
+        // Define an object that will hold all the dynamic data needed by application
+        var applicationState = {
+          route: 'welcome',
+          items: []
+        };
+
+        $.ajax({
+          cache: false,
+          url: BASE_URL,
+          method: 'GET',
+          dataType: 'json',
+          contentType: 'application/json; charset=utf-8',
+        }).done(function (data) {
+          //applicationState.items.push(data);
+          $(data).each(function (ind) {
+              applicationState.items.push(data[ind]);
+          });
+          console.log("application");
+          console.log(applicationState.items);
+          console.log(data);
+          // applicationState.items.splice($(event.target).attr('data-id'), 1);
+          // console.log('Todo item was deleted');
+          render();
+        }).fail(function (data) {
+          console.log('Failed to create todo item');
+        });
+
+        // Set up navigation event listeners
+        $('nav').on('click', 'a', function(event) {
+          // Extract template name
+          applicationState.route = $(this).attr('href').slice(1);
+          render();
+        });
+
+        // Set up application event listeners
+        // While I leverage event bubbling for the sake of simplicity
+        // you may want to dynamically attach and remove event listeners
+        // All further abstractions are up to you
+        var $main = $('main');
+        $main.on('click', 'button.item-add', function(event) {
+          var $input = $main.find('input.item-value');
+          $.ajax({
+            url: BASE_URL,
+            method: 'POST',
+            dataType: 'json',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({
+              text: $input.val()
+            })
+          }).done(function (data) {
+            applicationState.items.push(data);
+            console.log('Created todo item', data);
+          }).fail(function (data) {
+            console.log('Failed to create todo item');
+          });
+          render();
+        }).on('click', '#del-item', function(event) {
+          console.log($(event.target).parent().attr('data-id'));
+          // console.log(BASE_URL + $(event.target).attr('_id'));
+          $.ajax({
+            cache: false,
+            url: BASE_URL + $(event.target).parent().attr('data-id'),
+            method: 'DELETE',
+            dataType: 'json',
+            contentType: 'application/json; charset=utf-8',
+          }).done(function (data) {
+
+            var id = $(event.target).parent().attr('data-id');
+            console.log(id);
+            $(applicationState.items).each(function (ind) {
+              if(applicationState.items[ind]._id == id) {
+                applicationState.items.splice(ind, 1);
+                return false;
+              }
+            })
+            //applicationState.items.splice($(event.target).parent().attr('data-id'), 1);
+            console.log('Todo item was deleted');
+            render();
+          }).fail(function (data) {
+            console.log('Failed to create todo item');
+          });
+          render();
+        }).on('change', '.item input', function(event) {
+          // console.log($(event.target).parent().attr('data-id'));
+          // console.log(BASE_URL + $(event.target).attr('_id'));
+          $.ajax({
+            cache: false,
+            url: BASE_URL + $(event.target).parent().attr('data-id'),
+            method: 'PATCH',
+            dataType: 'json',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({
+              completed: $(event.target).is(':checked')
+            })
+          }).done(function (data) {
+            var id = $(event.target).parent().attr('data-id');
+
+            $(applicationState.items).each(function (ind) {
+              if(applicationState.items[ind]._id == id) {
+                applicationState.items[ind].completed = $(event.target).is(':checked');
+              }
+            })
+            render();
+          }).fail(function (data) {
+            console.log('Failed to create todo item');
+          });
+          render();
+        }).on('click', '#active', function(event) {
+            console.log($(".item"));
+            var filtered = $(".item").each(function (ind, elem) {
+              console.log($(elem).attr("data-completed"));
+                if($(elem).attr("data-completed") == "true") {
+                  $(elem).hide();
+                } else {
+                    $(elem).show();
+                }
+            })
+            console.log(filtered);
+            // render();
+          }).on('click', '#completed', function(event) {
+              console.log($(".item"));
+              var filtered = $(".item").each(function (ind, elem) {
+                console.log($(elem).attr("data-completed"));
+                  if($(elem).attr("data-completed") == "true") {
+                    $(elem).show();
+                  } else {
+                    $(elem).hide();
+                  }
+              })
+              console.log(filtered);
+              // render();
+            }).on('click', '#all', function(event) {
+                console.log($(".item"));
+                var filtered = $(".item").each(function (ind, elem) {
+                      $(elem).show();
+                })
+                console.log(filtered);
+                // render();
+              })
+          render();
+
+        // render function will be called every time content needs an update
+        function render() {
+          var content = $.templates[applicationState.route](applicationState);
+          $main.html(content);
+        }
+      });
+  </script>
+
+</head>
+<body>
+  <h1>Todo list</h1>
+
+  <nav>
+    <a href="#welcome"> Welcome </a>
+    <a href="#add"> Add </a>
+    <a href="#list"> List </a>
+  </nav>
+  <main>
+
+  </main>
+</body>
+</html>
